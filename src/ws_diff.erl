@@ -34,9 +34,9 @@
 
 -export([test/0]).
 
--include("../include/erlsom_parse.hrl").
--include("../include/erlsom.hrl").
--include("../include/wsdl20.hrl").
+-include_lib("erlsom/include/erlsom_parse.hrl").
+-include_lib("erlsom/include/erlsom.hrl").
+-include("wsdl20.hrl").
 
 -compile(export_all).
 
@@ -64,7 +64,7 @@ test() ->
 %%     to be evaluated!
 -spec ws_diff({OldWsdl::file:filename(), Oldxsd::file:filename()},
               {NewWsdl::file:filename(), NewXsd::file:filename()}) ->
-                     {ok, [term()]}|{error, term()}.
+                     {ok, [term()], [term()]}.
 ws_diff({OldWsdl, OldXsd}, {NewWsdl, NewXsd}) ->
     {ok, OldTypes, OldAPIs}=analyze_model(OldXsd, OldWsdl),
     {ok, NewTypes, NewAPIs}=analyze_model(NewXsd, NewWsdl),
@@ -340,7 +340,7 @@ analyze_type_changes_2(Changes) ->
                        {0, C, 0}}<-DistMatrix, C/=0],
     AttrChanges = [{{d, E1},{i, E2}}||
                       {{d, E1},{i, E2}, 
-                       {0, 0, C}}<-DistMatrix, C/0],
+                       {0, 0, C}}<-DistMatrix, C/=0],
     Renames = [{{d, E1}, {i, E2}}||
                   {{d, E1},{i, E2}, {1,0,0}}<-DistMatrix],
     FakeInserts = element(2, lists:unzip(ElemChanges)) ++

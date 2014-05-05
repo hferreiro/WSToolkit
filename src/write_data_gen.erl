@@ -39,9 +39,9 @@
 
 -compile(export_all).
 
--include("../include/erlsom_parse.hrl").
--includeb("../include/erlsom.hrl").
--include("../include/wsdl20.hrl").
+-include_lib("erlsom/include/erlsom_parse.hrl").
+-include_lib("erlsom/include/erlsom.hrl").
+-include("wsdl20.hrl").
 -include_lib("eqc/include/eqc.hrl").
 
 %%@private
@@ -92,7 +92,7 @@ write_data_generators_to_file(XsdFile, WsdlFile, OutFile) ->
 %%@see write_data_generators_to_file/3.
 -spec write_data_generators_to_file(XsdFile::file:filename(), 
                                     OutFile::file:filename()) 
-                                   -> ok | {error, Error::term()}.
+                                   -> ok | {error, Error::atom()}.
 write_data_generators_to_file(XsdFile, OutFile) ->
     write_data_generators_to_file(XsdFile, none, OutFile).
 
@@ -107,10 +107,7 @@ write_data_generators_to_file(XsdFile, OutFile) ->
                             WsdlFile::file:filename()|none)
                            -> {ok, string()} | {error, Error::term()}.
 write_data_generators(XsdFile, WsdlFile) ->
-    case whereis(gen_keeper) of 
-        undefined -> ok;
-        _ -> unregister(gen_keeper)
-    end,
+    catch unregister(gen_keeper),
     _Pid=spawn_link(fun() ->
                       register(gen_keeper, self()),
                            gen_keeper_loop([])
@@ -229,9 +226,7 @@ write_elements([Element|Tail], AllTypes, Acc) ->
         {none, none} ->
             write_elements(Tail, AllTypes, Acc);
         {Tag, String} ->
-            write_elements(Tail, AllTypes, [{Tag, String}|Acc]);
-        _Others ->
-            write_elements(Tail, AllTypes, Acc)
+            write_elements(Tail, AllTypes, [{Tag, String}|Acc])
     end.
     
 write_an_element(#el{alts = Alternatives, mn=Min, mx=Max}, AllTypes)->
@@ -255,7 +250,7 @@ write_alternatives([_A=#alt{tag = Tag, rl = true, tp=Type}],
  
 write_alternatives([A=#alt{tag = Tag, tp=Type}], 
                    {Min, Max}, AllTypes) ->
-    IsList = (Max == unbounded) orelse (Max>1),
+    IsList = (Max == unbound) orelse (Max>1),
     TGens=case lists:keyfind(Type, #type.nm, AllTypes) of 
               false -> "";
               T -> write_a_data_gen(T, AllTypes)
@@ -309,18 +304,18 @@ write_a_generator(A=#alt{},
             "none";
         {1, 1} ->
             Gen;
+        {1, unbound} ->
+            "eqc_gen:non_empty(eqc_gen:list("++Gen++"))";
         {1, unbounded} ->
             "eqc_gen:non_empty(eqc_gen:list("++Gen++"))";
-        {1, unbound} ->
-            "eqc_gen:non_empty(eqc_gen:list("++Gen++")";
         {1, ElemMax} when is_integer(ElemMax) ->
             "eqc_gen:non_empty(eqc_gen:resize("
                 ++integer_to_list(ElemMax)++", eqc_gen:list("++Gen++")))";
         {0,1}->
             "eqc_gen:oneof([none, "++Gen++"])";
-        {0, unbounded} ->
-            "eqc_gen:list("++Gen++")";
         {0, unbound} ->
+            "eqc_gen:list("++Gen++")";
+        {0, unbounded} ->
             "eqc_gen:list("++Gen++")";
         {0,ElemMax} when is_integer(ElemMax)->
             "eqc_gen:resize("

@@ -35,9 +35,9 @@
 
 -export([test0/0, test1/0, test2/0, test3/0]).
 
--include("../include/erlsom_parse.hrl").
--include("../include/erlsom.hrl").
--include("../include/wsdl20.hrl").
+-include_lib("erlsom/include/erlsom_parse.hrl").
+-include_lib("erlsom/include/erlsom.hrl").
+-include("wsdl20.hrl").
 
 -type module_name()::atom().
 
@@ -89,16 +89,17 @@ test3() ->
 %%     .hrl file is needed, and the name of the connector module as input,
 %%     and writes the `eqc_statem' module generated to `OutFile'.
 %%     This function assumes that the WSDL file follows wsdl2.0 standard.
--spec write_eqc_statem(WsdlFile::file:filename(),
+-spec write_eqc_statem(WsdlFile::file:filename()|none,
                        XsdFile::file:filename(),
                        HrlFile::file:filename()|none,
-                       SUT::module_name(),
-                       Style:: tuple|non_tuple,
+                       SUT::file:filename(),
+                       Style::tuple|non_tuple,
                        OutFile::file:filename()) ->
-                              ok |{error, Error::term()}.
+                              ok | {error, Error::term()}.
 write_eqc_statem(WsdlFile, XsdFile,HrlFile, SUT, Style, OutFile) ->
     {ok, Model} = erlsom:compile_xsd_file("../priv/wsdl20.xsd"),
     Model1 = erlsom:add_xsd_model(Model),
+%    io:format("--> ~p~n", [Model1]),
     Result=erlsom:parse_file(WsdlFile, Model1),
     case Result of
         {ok, Res} ->
@@ -353,7 +354,7 @@ write_elements([Element | Tail], Acc) ->
 write_an_element(#el{alts = Alternatives, mn=_Min, mx=1})->
     write_alternatives(Alternatives, false);
 write_an_element(#el{alts = Alternatives, mn=_Min, mx=Max}) 
-  when Max==unbounded->
+  when Max==unbound->
     write_alternatives(Alternatives, true);
 write_an_element(#el{alts = Alternatives, mn=_Min, mx=Max})->
     if (is_integer(Max) andalso Max >1) ->
