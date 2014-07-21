@@ -34,9 +34,9 @@
 
 -export([test/0]).
 
--include("../include/erlsom_parse.hrl").
--include("../include/erlsom.hrl").
--include("../include/wsdl20.hrl").
+-include("include/erlsom_parse.hrl").
+-include("include/erlsom.hrl").
+-include("include/wsdl20.hrl").
 
 -compile(export_all).
 
@@ -49,10 +49,10 @@ gen_diff(Dir1, Dir2) ->
 
 %%@private
 test() ->
-    ws_diff({"../tests/vodkatv_sample/vodkatv_v0.wsdl",
-             "../tests/vodkatv_sample/vodkatv_v0.xsd"},
-            {"../tests/vodkatv_sample/vodkatv_expanded.wsdl", 
-             "../tests/vodkatv_sample/vodkatv.xsd"}).
+    ws_diff({"tests/vodkatv_sample/vodkatv_v0.wsdl",
+             "tests/vodkatv_sample/vodkatv_v0.xsd"},
+            {"tests/vodkatv_sample/vodkatv_expanded.wsdl",
+             "tests/vodkatv_sample/vodkatv.xsd"}).
 
 %%@doc This funtions tries to infer the API changes between two versions
 %%     of the web service specification. It takes the WSDL and XSD specification

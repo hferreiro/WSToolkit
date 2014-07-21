@@ -39,33 +39,33 @@
 
 -compile(export_all).
 
--include("../include/erlsom_parse.hrl").
--includeb("../include/erlsom.hrl").
--include("../include/wsdl20.hrl").
+-include("include/erlsom_parse.hrl").
+-includeb("include/erlsom.hrl").
+-include("include/wsdl20.hrl").
 -include_lib("eqc/include/eqc.hrl").
 
 %%@private
 test0()->
-    write_data_generators_to_file("../tests/weather/weather.xsd",
-                                  "../tests/weather/weather.wsdl",
+    write_data_generators_to_file("tests/weather/weather.xsd",
+                                  "tests/weather/weather.wsdl",
                                   "weather.erl").
 
 %%@private
 test1()->
-    write_data_generators_to_file("../tests/bookstore_sample/complex_example.xsd", 
+    write_data_generators_to_file("tests/bookstore_sample/complex_example.xsd",
                                   "complex.erl").
 %%@private
 test2() ->
-    write_data_generators_to_file("../tests/bookstore_sample/booklist.xsd", 
+    write_data_generators_to_file("tests/bookstore_sample/booklist.xsd",
                                   "booklist.erl").
 %%@private
 test3()->
-    write_data_generators_to_file("../tests/bookstore_sample/book.xsd",
+    write_data_generators_to_file("tests/bookstore_sample/book.xsd",
                                   "book.erl").
 %%@private
 test4() ->
-    write_data_generators_to_file("../tests/vodkatv_sample/vodkatv.xsd",
-                                  "../tests/vodkatv_sample/vodkatv_expanded.wsdl",
+    write_data_generators_to_file("tests/vodkatv/vodkatv.xsd",
+                                  "tests/vodkatv/vodkatv_expanded.wsdl",
                                   "vodkatv.erl").
 
 %%@doc. Generates QuickCheck data generators according to the 
@@ -622,7 +622,7 @@ rm_duplicates_1([E|Elems], Acc) ->
     end.
 
 get_input_data_types(WsdlFile, Model) ->
-    {ok, Model1} = erlsom:compile_xsd_file("../priv/wsdl20.xsd"),
+    {ok, Model1} = erlsom:compile_xsd_file("priv/wsdl20.xsd"),
     Model2 = erlsom:add_xsd_model(Model1),
     Result=erlsom:parse_file(WsdlFile, Model2),
     case Result of

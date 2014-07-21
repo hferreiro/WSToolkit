@@ -40,15 +40,15 @@
 
 -compile(export_all).
 
--include("../include/erlsom_parse.hrl").
--include("../include/erlsom.hrl").
--include("../include/wsdl20.hrl").
+-include("include/erlsom_parse.hrl").
+-include("include/erlsom.hrl").
+-include("include/wsdl20.hrl").
 
 vodkatv_sut() ->
     write_sut_api(
       "vodkatv.hrl",
-      "../tests/vodkatv/vodkatv.wsdl",
-      "../tests/vodkatv/vodkatv.xsd",
+      "tests/vodkatv/vodkatv.wsdl",
+      "tests/vodkatv/vodkatv.xsd",
       "http://193.144.63.20:8081/vodkatv/",
       "vodkatv_sut.erl").
 
@@ -56,8 +56,8 @@ vodkatv_sut() ->
 test0() ->
     write_sut_api(
       none,
-      "../tests/weather/weather.wsdl", 
-      "../tests/weather/weather.xsd",
+      "tests/weather/weather.wsdl",
+      "tests/weather/weather.xsd",
       "http://www.webservicex.net/globalweather.asmx",
       "weather_sut.erl").
 
@@ -65,8 +65,8 @@ test0() ->
 test1() ->
     write_sut_api(
       none,
-      "../tests/bookstore_sample/booklist_expanded.wsdl", 
-      "../tests/bookstore_sample/booklist.xsd",
+      "tests/bookstore_sample/booklist_expanded.wsdl",
+      "tests/bookstore_sample/booklist.xsd",
       "http://www.bookstore.com/books/",
       "booklist_sut.erl").
 
@@ -74,8 +74,8 @@ test1() ->
 test2() ->
     write_sut_api(
       none,
-      "../tests/bookstore_sample/book-0321396855_expanded.wsdl", 
-      "../tests/bookstore_sample/book.xsd",
+      "tests/bookstore_sample/book-0321396855_expanded.wsdl",
+      "tests/bookstore_sample/book.xsd",
       "http://www.bookstore.com/books/",
       "book_sut.erl").
 
@@ -83,8 +83,8 @@ test2() ->
 test3()->
     write_sut_api(
       none,
-      "../tests/vodkatv_sample/vodkatv_v0.wsdl", 
-      "../tests/vodkatv_sample/vodkatv_v0.xsd", 
+      "tests/vodkatv_sample/vodkatv_v0.wsdl",
+      "tests/vodkatv_sample/vodkatv_v0.xsd",
       "http://localhost:8082/vodkatv/",
       "vodkatv_sut.erl").
 
@@ -108,7 +108,7 @@ test3()->
                     OutFile::file:filename())->
                            ok|{error, Error::term()}.
 write_sut_api(HrlFile, WsdlFile, XsdFile, BaseURL, OutFile) ->
-    {ok, Model} = erlsom:compile_xsd_file("../priv/wsdl20.xsd"),
+    {ok, Model} = erlsom:compile_xsd_file("priv/wsdl20.xsd"),
     Model1 = erlsom:add_xsd_model(Model),
     Result=erlsom:parse_file(WsdlFile, Model1),
     case Result of

@@ -36,15 +36,15 @@
 
 -export([test0/0, test1/0, test2/0, test3/0]).
 
--include("../include/erlsom_parse.hrl").
--include("../include/erlsom.hrl").
--include("../include/wsdl20.hrl").
+-include("include/erlsom_parse.hrl").
+-include("include/erlsom.hrl").
+-include("include/wsdl20.hrl").
 
 %%@private
 test0() ->
     write_eqc_statem(
-      "../tests/weather/weather.wsdl", 
-      "../tests/weather/weather.xsd",
+      "tests/weather/weather.wsdl",
+      "tests/weather/weather.xsd",
       none,
       "weather_sut",
       {non_grouping, tuple},
@@ -54,8 +54,8 @@ test0() ->
 %%@private
 test1() ->
     write_eqc_statem(
-      "../tests/bookstore_sample/booklist_expanded.wsdl", 
-      "../tests/bookstore_sample/booklist.xsd",
+      "tests/bookstore_sample/booklist_expanded.wsdl",
+      "tests/bookstore_sample/booklist.xsd",
       none,
       "booklist_sut",
       {non_grouping, non_tuple},
@@ -64,8 +64,8 @@ test1() ->
 %%@private
 test2() ->
     write_eqc_statem(
-      "../tests/bookstore_sample/booklist_expanded.wsdl", 
-      "../tests/bookstore_sample/booklist.xsd",
+      "tests/bookstore_sample/booklist_expanded.wsdl",
+      "tests/bookstore_sample/booklist.xsd",
       none,
       "book_sut",
       {grouping, tuple},
@@ -74,12 +74,12 @@ test2() ->
 %%@private
 test3() ->
     write_eqc_statem(
-      "../tests/vodkatv/vodkatv.wsdl", 
-      "../tests/vodkatv/vodkatv.xsd",
+      "tests/vodkatv/vodkatv.wsdl", 
+      "tests/vodkatv/vodkatv.xsd",
       none, 
       "vodkatv_sut",
       {non_grouping,non_tuple},
-      "../tests/vodkatv/vodkatv_test.erl").
+      "tests/vodkatv/vodkatv_test.erl").
    
 %%@doc Generates the initial `eqc_statem' test module. This function 
 %%     takes the WSDL specification of the web service, the XSD schema,
@@ -98,7 +98,7 @@ test3() ->
                        OutFile::file:filename()) ->
                               ok | {error, Error::term()}.
 write_eqc_statem(WsdlFile, XsdFile,HrlFile, SUT, Style, OutFile) ->
-    {ok, Model} = erlsom:compile_xsd_file("../priv/wsdl20.xsd"),
+    {ok, Model} = erlsom:compile_xsd_file("priv/wsdl20.xsd"),
     Model1 = erlsom:add_xsd_model(Model),
     Result=erlsom:parse_file(WsdlFile, Model1),
     case Result of

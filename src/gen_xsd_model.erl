@@ -35,23 +35,23 @@
 -export([test/0, test1/0, test2/0, test3/0]).
 
 
--include("../include/erlsom_parse.hrl").
--include("../include/erlsom.hrl").
+-include("include/erlsom_parse.hrl").
+-include("include/erlsom.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
--include("../include/wsdl20.hrl").
+-include("include/wsdl20.hrl").
 
 %%@private
 test()->
-    gen_xsd_model("../tests/weather/weather.xsd").
+    gen_xsd_model("tests/weather/weather.xsd").
 %%@private
 test1() ->
-    gen_xsd_model("../tests/bookstore_sample/book.xsd").
+    gen_xsd_model("tests/bookstore_sample/book.xsd").
 %%@private
 test2()->
-    gen_xsd_model("../tests/bookstore_sample/person.xsd").
+    gen_xsd_model("tests/bookstore_sample/person.xsd").
 %%@private
 test3() ->
-    gen_xsd_model("../tests/vodkatv_sample/vodkatv.xsd").
+    gen_xsd_model("tests/vodkatv_sample/vodkatv.xsd").
                                  
 gen_xsd_model(XsdFile) ->
     case erlsom:compile_xsd_file(XsdFile, []) of
