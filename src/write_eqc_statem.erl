@@ -129,11 +129,12 @@ write_eqc_statem_2(APIInterface, DataModel, WsdlFile,
     NextState=gen_next_states(APIInterface, DataModel, Style,[]),
     AdaptorFuns = gen_adaptor_funs(APIInterface, DataModel, Style,[]),
     UtilFuns=util_funs(),
+    WsdlDslFuns = wsdl_dsl_funs(Style),
     {ok, DataGens}= write_data_gen:write_data_generators(XsdFile, WsdlFile),
     Heading=create_heading(HrlFile, SUT, OutFile, false),
     Content = Heading ++ Commands ++PreConds ++ 
         PostConds ++ NextState++ AdaptorFuns++ 
-        DataGens++
+        WsdlDslFuns ++ DataGens++
         UtilFuns,
     file:write_file(OutFile, list_to_binary(Content));
   
@@ -142,10 +143,11 @@ write_eqc_statem_2(APIInterface, DataModel, WsdlFile,
     CallBacks =gen_callbacks(APIInterface, DataModel, Style, []),
     AdaptorFuns = gen_adaptor_funs(APIInterface, DataModel, Style,[]),
     UtilFuns=util_funs(),
+    WsdlDslFuns = wsdl_dsl_funs(Style),
     {ok, DataGens}= write_data_gen:write_data_generators(XsdFile, WsdlFile),
     Heading=create_heading(HrlFile, SUT, OutFile, true),
     Content = Heading ++ CallBacks++AdaptorFuns++ 
-        DataGens++UtilFuns,
+        WsdlDslFuns ++ DataGens++UtilFuns,
     file:write_file(OutFile, list_to_binary(Content)).
  
                 
@@ -178,13 +180,34 @@ gen_command_body(Param, Model, Style, APIName1, Indent) ->
         _ ->
             ParamName = list_to_atom(lists:last(string:tokens(Param, [$:]))),
             Type = fetch_input_type(ParamName, Model),
-            GenStrs = write_a_generator(Type, Style),
+            GenStrs = lists:map(fun wsdl_dsl_wrapper/1, write_a_generator(Type, Style)),
             SymbolCall =Prefix++"{call, ?MODULE, "++APIName1++", [",
             Prefix1 =lists:append(lists:duplicate(length(SymbolCall)-1, " ")),
             Params = concat_string(GenStrs, Prefix1),
             SymbolCall++Params++"]}"
     end.
-           
+
+wsdl_dsl_wrapper(none) ->
+    none;
+wsdl_dsl_wrapper(G) ->
+    "wsdl_dsl_adaptor(" ++ G ++ ")".
+
+wsdl_dsl_funs(Style) ->
+    Unlist = fun(S) ->
+                case Style of
+                    tuple ->
+                        "list_to_tuple(" ++ S ++ ")";
+                    non_tuple ->
+                        S
+                end
+             end,
+    "wsdl_dsl_adaptor(G) ->\n" ++
+    "    ?LET(D, wsdl_dsl:wsdlType(G),\n" ++
+    "         " ++ Unlist("wsdl_dsl_flatten(wsdl_dsl_pp:tuplify(D))") ++ ").\n\n" ++
+    "wsdl_dsl_flatten({_Tag, Attrs, Elems}) ->\n" ++
+    "    lists:map(fun ({_,V}) -> V end, Attrs) ++ wsdl_dsl_flatten(Elems);\n" ++
+    "wsdl_dsl_flatten(Any) ->\n" ++
+    "    Any.\n".
 
 fetch_input_type(ParamName, _Model=#model{tps = Types}) ->
     DocType = lists:keyfind('_document',#type.nm, Types),

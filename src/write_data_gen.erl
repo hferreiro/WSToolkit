@@ -179,28 +179,19 @@ write_a_complex_gen(_T=#type{nm = Name, tp=Type, els = Elements, atts = Attribut
     {ElemNames, ElemDataGens} = lists:unzip(Elems),
     DataGens = lists:reverse(AttrDataGens)++
         lists:reverse(ElemDataGens),
-    Body=case Type of 
-             choice ->
-                 AttrGenStr=concat_string(["gen_"++camelCase_to_camel_case(N)++"()"
-                                           ||N<-AttrNames]),
-                 ElemGenStr=concat_string(["gen_"++camelCase_to_camel_case(N)++"()"
-                                           ||N<-ElemNames]),
-                 "\n   {"++AttrGenStr++", oneof("++ElemGenStr++")}.\n\n";                 
-             _ ->case length(Attrs++Elems) of 
-                     1->
-                         concat_string(["gen_"++camelCase_to_camel_case(N)++"()"
-                                        ||N<-(AttrNames++ElemNames)]);
-                     _ ->
-                         Prefix ="   ?LET({",
-                         FieldNames = lists:reverse(AttrNames++ElemNames),
-                         GenStr=concat_string(["gen_"++camelCase_to_camel_case(N)++"()"
-                                               ||N <- FieldNames],length(Prefix)-1,3,0),
-                         Fields=gen_param_string(FieldNames,length(Prefix)-1,3,0),
-                         "\n" ++ Prefix ++ Fields ++ "},\n" ++
-                             "        {" ++ GenStr ++ "},\n" ++
-                             "        {" ++ Fields ++ "})"
-                 end
-         end,
+    ElemsGen = ["gen_"++camelCase_to_camel_case(N)++"()"
+                ||N <- lists:reverse(ElemNames)],
+    Content =
+        case Type of
+            choice ->
+                "wsdl_dsl:union(" ++ format_list(ElemsGen) ++ ")";
+            _ ->
+                "wsdl_dsl:sequence(" ++ format_list(ElemsGen) ++ ")"
+        end,
+    AttrsK = lists:reverse(AttrNames),
+    AttrsV = ["gen_"++camelCase_to_camel_case(N)++"()" ||N <- AttrsK],
+    Body = printf("wsdl_dsl:tag(\"~s\", ~s, ~s)",
+                  [Name, format_list(lists:zip(AttrsK, AttrsV)), Content]),
     Head = "gen_"++camelCase_to_camel_case(atom_to_list(Name))++"()",
     case Head==Body of 
         true -> DataGens;
@@ -211,11 +202,26 @@ write_a_complex_gen(_T=#type{nm = Name, tp=Type, els = Elements, atts = Attribut
                 {Pid, exist} ->
                     DataGens;
                 _ ->
-                    ComplexGen = Head++"->"++Body++".\n\n",
+                    ComplexGen = Head++" ->\n    "++Body++".\n\n",
                     [ComplexGen|DataGens]
             end
     end.
-  
+
+printf(Format, Data) ->
+    lists:flatten(io_lib:format(Format, Data)).
+
+format_list([]) ->
+    "[]";
+format_list(Elems) ->
+    "[" ++ lists:nthtail(2, lists:foldl(fun(E, Acc) -> Acc ++ ", " ++
+                                                       format_elem(E) end,
+                                        "", Elems)) ++ "]".
+
+format_elem({K,V}) ->
+    printf("{~s, ~s}", [K, V]);
+format_elem(Any) ->
+    Any.
+
   
 write_elements(Elements, AllTypes)  ->
   write_elements(Elements,  AllTypes, []).
@@ -288,39 +294,22 @@ write_a_gen_fun(Name, Body) ->
             {NewName, ""};
         {Pid, NewName, code_does_not_exist} ->
             Head="gen_"++camelCase_to_camel_case(
-                           NewName)++"()->",
+                           NewName)++"() ->\n    ",
             {NewName, Head++Body++".\n\n"};
         {Pid, none} ->
             Head="gen_"++camelCase_to_camel_case(
-                           Name)++"()->",
+                           Name)++"() ->\n    ",
             {Name, Head++Body++".\n\n"}
     end.
  
 write_a_generator(A=#alt{}, 
+                  {1, 1}) ->
+    write_a_generator_1(A);
+write_a_generator(A=#alt{},
                   {ElemMin, ElemMax}) ->
-    Gen=write_a_generator_1(A),
-    case {ElemMin, ElemMax} of 
-        {0, 0} ->
-            "none";
-        {1, 1} ->
-            Gen;
-        {1, unbound} ->
-            "eqc_gen:non_empty(eqc_gen:list("++Gen++"))";
-        {1, unbounded} ->
-            "eqc_gen:non_empty(eqc_gen:list("++Gen++"))";
-        {1, ElemMax} when is_integer(ElemMax) ->
-            "eqc_gen:non_empty(eqc_gen:resize("
-                ++integer_to_list(ElemMax)++", eqc_gen:list("++Gen++")))";
-        {0,1}->
-            "eqc_gen:oneof([none, "++Gen++"])";
-        {0, unbound} ->
-            "eqc_gen:list("++Gen++")";
-        {0, unbounded} ->
-            "eqc_gen:list("++Gen++")";
-        {0,ElemMax} when is_integer(ElemMax)->
-            "eqc_gen:resize("
-                ++integer_to_list(ElemMax)++", eqc_gen:list("++Gen++"))"
-    end.
+    Gen = write_a_generator_1(A),
+    printf("wsdl_dsl:minOccurs(~w, wsdl_dsl:maxOccurs(~w, ~s))",
+           [ElemMin, ElemMax, Gen]).
             
 write_a_generator_1(#alt{tag = _Tag, tp=Type, mn=_Min, mx=_Mix, anyInfo=Constraints}) 
   when is_list(Constraints) ->
@@ -343,50 +332,47 @@ write_name_without_prefix(Name, _Max) ->
     L=[_H|_] = erlsom_lib:nameWithoutPrefix(atom_to_list(Name)),
     L++"List".
 
-write_enum_type(_Type, Enums) ->                         
-    lists:flatten(io_lib:format("eqc_gen:oneof(~p)", [Enums])).
+write_enum_type(Type, Enums) ->
+    Gen = write_gen(Type, []),
+    printf("wsdl_dsl:enumeration(~w, ~s)", [Enums, Gen]).
   
 write_gen({'#PCDATA', bool}, _Constraints) ->
-    "bool()";
+    "wsdl_dsl:bool()";
 write_gen({'#PCDATA', char}, []) ->
-     "gen_lib:string()";
+    "wsdl_dsl:string()";
 write_gen(char, []) ->
-    "gen_lib:string()";
+    "wsdl_dsl:string()";
 write_gen(string, Constraints) ->
-    case lists:keyfind(pattern, 1, Constraints) of 
-        {pattern, Pattern} ->
-            "gen_lib:string("++"\""++Pattern++"\")";
-        false ->
-            {MinLen, MaxLen}=
-                case lists:keyfind(length, 1, Constraints) of
-                    {length, Len} ->
-                       {Len, Len};
-                    false ->
-                        case lists:keyfind(max_length, 1, Constraints) of
-                            {max_length, Max} ->
-                                case lists:keyfind(min_length, 1, Constraints) of 
-                                    {min_length, Min} ->
-                                        {Min, Max};
-                                    false ->
-                                        {1, Max}
-                                end;
-                            false ->
-                                case lists:keyfind(min_length, 1, Constraints) of 
-                                    {min_length, Min} ->
-                                        {Min, inf};
-                                    false ->
-                                        {1, inf}
-                                end
-                        end
-                end,
-            case {MinLen, MaxLen} of 
-                {1, inf} -> "gen_lib:string()";
-                _ ->
-                    lists:flatten(
-                      io_lib:format(
-                        "gen_lib:string(~p,~p)", [MinLen, MaxLen]))
-            end
-    end;  
+    Gen = "wsdl_dsl:string()",
+    Gen1 = case lists:keyfind(pattern, 1, Constraints) of
+               {pattern, Pattern} ->
+                   printf("wsdl_dsl:pattern(regexp_gen:from_string(~w, ~s)",
+                          [Pattern, Gen]);
+               false ->
+                   Gen
+           end,
+    Gen2 = case lists:keyfind(length, 1, Constraints) of
+               {length, Len} ->
+                   printf("wsdl_dsl:length(~w, ~s)",
+                          [Len, Gen1]);
+               false ->
+                   Gen1
+           end,
+    Gen3 = case lists:keyfind(max_length, 1, Constraints) of
+               {max_length, Max} ->
+                   printf("wsdl_dsl:maxLength(~w, ~s)",
+                          [Max, Gen2]);
+               false ->
+                   Gen2
+           end,
+    Gen4 = case lists:keyfind(min_length, 1, Constraints) of
+               {min_length, Min} ->
+                   printf("wsdl_dsl:minLength(~w, ~s)",
+                          [Min, Gen3]);
+               false ->
+                   Gen3
+           end,
+    Gen4;
 write_gen(Type, Constraints) ->
     case is_numeric_type(Type) of 
         true->
@@ -405,7 +391,7 @@ write_gen(TypeName) when is_list(TypeName) ->
 write_gen(TypeName)when is_atom(TypeName) ->
     "gen_"++camelCase_to_camel_case(atom_to_list(TypeName))++"()";
 write_gen(_TypeName)->
-    "string()".   %% need to be fixed.
+    "wsdl_dsl:string()".   %% need to be fixed.
 
 is_numeric_type({'#PCDATA', Type}) ->
     is_numeric_type(Type);
@@ -433,7 +419,7 @@ numeric_types() ->
 gen_numeric(Type, Constraints) ->
     case lists:keyfind(pattern, 1, Constraints) of 
         {pattern, Pattern} ->
-            "gen_lib:integer("++"\""++Pattern++"\")";
+            "wsdl_dsl:pattern(regexp_gen:from_string(\"" ++ Pattern ++ "\", wsdl_dsl:int()))";
         false ->
             LowerBound=case lists:keyfind(min_inclusive, 1, Constraints) of 
                          {min_inclusive, Min} ->
@@ -461,17 +447,28 @@ gen_numeric(Type, Constraints) ->
     end.
             
 gen_numeric_1(decimal, {_LowerBound, _UpperBound}) ->
-    "eqc_gen:float()";
+    "wsdl_dsl:decimal()";
 gen_numeric_1(float, {_LowerBound, _UpperBound}) ->
-    "eqc_gen:float()";
+    "wsdl_dsl:decimal()";
 gen_numeric_1(double, {_LowerBound, _UpperBound}) ->
-    "eqc_gen:float()";
+    "wsdl_dsl:decimal()";
 gen_numeric_1(Type, {LowerBound, UpperBound}) ->
     NewLower = get_new_lower(Type, LowerBound),
     NewUpper = get_new_upper(Type, UpperBound),
-    lists:flatten(
-      io_lib:format(
-        "gen_lib:integer(~p,~p)", [NewLower, NewUpper])).
+    Gen = "wsdl_dsl:int()",
+    Gen1 = case NewLower of
+               inf ->
+                   Gen;
+               _ ->
+                   printf("wsdl_dsl:minInclusive(~w, ~s)", [NewLower, Gen])
+           end,
+    Gen2 = case NewUpper of
+               inf ->
+                   Gen1;
+               _ ->
+                   printf("wsdl_dsl:maxInclusive(~w, ~s)", [NewUpper, Gen1])
+           end,
+    Gen2.
 
 
 get_new_lower(Type, LowerBound) ->
@@ -555,24 +552,6 @@ camelCase_to_camel_case_1([H|T], Acc) when H==35->
 camelCase_to_camel_case_1([H|T], Acc)->
     camelCase_to_camel_case_1(T, [H|Acc]).
 
-gen_param_string([],_,_NoCols, _) ->
-    "";
-gen_param_string([P],_Offset,_NoCols, _Cnt) when is_atom(P) ->
-    to_upper(atom_to_list(P));
-gen_param_string([P],_Offset,_NoCols, _Cnt) when is_list(P) ->
-    to_upper(P);
-gen_param_string([H|T],Offset,NoCols, Cnt) ->
-    Prefix=case (Cnt + 1) rem NoCols of
-               0 ->",\n "++lists:append(lists:duplicate(Offset, " "));
-               _ -> ", "
-           end,
-    if is_atom(H) ->
-            to_upper(atom_to_list(H))
-              ++ Prefix ++ gen_param_string(T,Offset,NoCols,Cnt+1);
-       true ->
-            to_upper(H)
-              ++ Prefix ++ gen_param_string(T,Offset,NoCols,Cnt+1)
-    end.
     
 to_upper([H|T]) -> 
     normalise([string:to_upper(H)|T]).
@@ -586,26 +565,6 @@ normalise([H|T]) ->
             [95|normalise(T)]
     end;
 normalise([]) ->[].
-
-
-concat_string([],_Offset,_NoCols, _Cnt) ->
-    "";
-concat_string([P],_Offset,_NoCols, _Cnt) ->
-    P;
-concat_string([H|T],Offset,NoCols, Cnt) ->
-    Prefix=case (Cnt+1) rem NoCols of
-               0 ->",\n "++lists:append(lists:duplicate(Offset, " "));
-               _ -> ", "
-           end,
-    H ++ Prefix ++ concat_string(T,Offset,NoCols,Cnt+1).
-    
-
-concat_string([]) ->
-    "";
-concat_string([P]) ->
-    P;
-concat_string([H|T]) ->
-    H++", "++concat_string(T).
 
 
 rm_duplicates(Elems) ->
